@@ -1,0 +1,65 @@
+1. Download & install virtualbox
+2. Download  Ubuntu iso (follow https://itsfoss.com/install-linux-in-virtualbox/, download from https://ubuntu.com/download/desktop)
+3. Installations:
+sudo apt install jq
+sudo apt-get update
+sudo apt-get install git build-essential -y
+sudo apt-get install autoconf libboost-all-dev libssl-dev libprotobuf-dev protobuf-compiler libqt4-dev libqrencode-dev libtool -y
+sudo apt-get install libevent-dev
+cd  Downloads/
+wget http://mirrors.kernel.org/ubuntu/pool/universe/d/db/libdb5.1_5.1.29-7ubuntu1_amd64.deb
+wget http://mirrors.kernel.org/ubuntu/pool/universe/d/db/libdb5.1++_5.1.29-7ubuntu1_amd64.deb
+sudo dpkg -i libdb5.1*.deb
+wget http://mirrors.kernel.org/ubuntu/pool/universe/d/db/libdb5.1-dev_5.1.29-7ubuntu1_amd64.deb
+wget http://mirrors.kernel.org/ubuntu/pool/universe/d/db/libdb5.1++-dev_5.1.29-7ubuntu1_amd64.deb
+sudo dpkg -i libdb5.1*-dev*.deb
+cd ~ 
+sudo apt install git-all
+sudo apt-get install -y   autoconf automake build-essential git libtool libgmp-dev   libsqlite3-dev python python3 net-tools zlib1g-dev libsodium-dev
+sudo apt-get install -y asciidoc valgrind python3-pip
+4. Install bitcoind:
+cd  ~
+git clone https://github.com/bitcoin/bitcoin.git
+cd bitcoin
+git checkout v0.19.0.1
+./autogen.sh
+./configure --with-incompatible-bdb
+make
+sudo make install
+Check installation worked:
+which bitcoind
+which bitcoin-cli
+Create directory for scripts and configuration files:
+cd ~
+mkdir .bitcoin
+cd .bitcoin
+Get configurations & Scripts from git:
+git init
+git remote add -f origin https://github.cs.huji.ac.il/ayelem02/Lightning-Network-Congestion-Attacks.git
+git config core.sparseCheckout true
+echo "Proof-of-Concept-Experiments/.bitcoin/" >> .git/info/sparse-checkout
+git pull origin master
+mv Proof-of-Concept-Experiments/.bitcoin/* .
+rm -rf Proof-of-Concept-Experiments/ .git/ 
+chmod -R 777 *
+5. Install c-lightning:
+cd ~
+git clone https://github.com/ElementsProject/lightning.git
+cd lightning
+git checkout tags/v0.8.0
+./configure --enable-developer
+make DEVELOPER=1
+Create directory for scripts and configuration files:
+cd ~
+mkdir .lightning
+cd .lightning
+Get configurations & Scripts from git:
+git init
+git remote add -f origin https://github.cs.huji.ac.il/ayelem02/Lightning-Network-Congestion-Attacks.git
+git config core.sparseCheckout true
+echo "Proof-of-Concept-Experiments/.lightning/" >> .git/info/sparse-checkout
+git pull origin master
+mv Proof-of-Concept-Experiments/.lightning/* .
+rm -rf Proof-of-Concept-Experiments/ .git/
+mkdir logs
+chmod -R 777 *

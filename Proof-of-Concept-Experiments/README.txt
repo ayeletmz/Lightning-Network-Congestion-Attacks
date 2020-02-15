@@ -1,0 +1,1 @@
+To demonstrate the viability of the attacks we conducted several experiments using C-Lightning nodes that were running over a separate Bitcoin network (in regtest mode). The folder includes the source code of our proof of concept experiments -- paralyzing channels we construct in test-networks in order to validate the attack.
