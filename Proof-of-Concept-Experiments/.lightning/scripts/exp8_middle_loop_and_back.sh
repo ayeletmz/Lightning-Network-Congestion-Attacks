@@ -7,7 +7,7 @@
 HOME='/home/ayelet'
 . $HOME/.lightning/scripts/logger.sh
 
-log_file="$HOME/.lightning/logs/exp8_balloon_$(date +'%d-%m-%Y-%H:%M:%S').log"
+log_file="$HOME/.lightning/logs/exp8_middle_loop_and_back_$(date +'%d-%m-%Y-%H:%M:%S').log"
 
 Alice_port=27592
 Bob_port=27593
