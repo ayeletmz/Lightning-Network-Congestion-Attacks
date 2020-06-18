@@ -254,13 +254,13 @@ def plot_degree_analysis(snapshot_path):
     ax1.hist(degrees, bins=np.arange(1, 52, 2), weights=[1 / len(degrees)] * len(degrees), align="left")
     greater_than_50 = sum(1 for i in degrees if i > 50) / len(degrees)
     ax1.bar(52, greater_than_50, width=2)
-    ax1.text(51.4, -0.033, "51+", fontsize=16)
+    ax1.text(51.4, -0.041, "51+", fontsize=16)
     ax1.set_xlabel('Degree', fontsize=16)
     ax1.set_xticks(np.arange(0, 60, 10))
     ax1.set_xticklabels(labels=np.arange(0, 60, 10), fontsize=16)
     ax1.set_ylabel('Fraction of nodes', fontsize=18)
-    ax1.set_yticks(np.arange(0, 0.35, 0.05))
-    ax1.set_yticklabels(labels=["{:.2f}".format(x) for x in np.arange(0, 0.35, 0.05)], fontsize=16)
+    ax1.set_yticks(np.arange(0, 0.4, 0.05))
+    ax1.set_yticklabels(labels=["{:.2f}".format(x) for x in np.arange(0, 0.4, 0.05)], fontsize=16)
     ax1.set_title("Histogram of degrees of nodes in the network", fontsize=19)
 
     logger.debug("Average Degree: " + str(np.average(degrees)) + ", Std: " + str(np.std(degrees)) +
@@ -286,12 +286,13 @@ def plot_degree_analysis(snapshot_path):
         for node_result in attack_cost_by_degree[degree]:
             ax2.scatter(degree, node_result, s=16, color="#4C72B0", alpha=0.5, edgecolors='none')
     ax2.set_xlabel('Degree', fontsize=18)
-    ax2.set_xticks(np.arange(0, 1000, 200))
-    ax2.set_xticklabels(labels=np.arange(0, 1000, 200), fontsize=16)
+    ax2.set_xticks(np.arange(0, 800, 100))
+    ax2.set_xticklabels(labels=np.arange(0, 800, 100), fontsize=16)
     ax2.set_ylabel('Attacker Channels', fontsize=18)
     ax2.set_yticks(np.arange(0, 140, 20))
     ax2.set_yticklabels(labels=np.arange(0, 140, 20), fontsize=16)
-    ax2.set_xlim((0, 905))
+    ax2.set_xlim((0, 800))
+    ax2.set_ylim((0, 110))
     ax2.set_title("Channels required in order to isolate nodes of different degrees", fontsize=19)
     plt.tight_layout()
     plt.savefig("plots/attack_on_hub_degree_analysis.svg")
@@ -365,7 +366,7 @@ def main():
     coloredlogs.install(fmt='%(asctime)s [%(module)s: line %(lineno)d] %(levelname)s %(message)s',
                         level=logging.DEBUG, logger=logger)
 
-    snapshot_path = 'snapshots/LN_2020.01.01-08.00.01.json'
+    snapshot_path = 'snapshots/LN_2020.05.21-08.00.01.json'
 
     attack_selected_hubs(snapshot_path)
     plot_degree_analysis(snapshot_path)
