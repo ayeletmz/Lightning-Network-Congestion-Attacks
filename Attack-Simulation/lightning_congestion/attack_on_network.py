@@ -9,11 +9,14 @@ import operator
 
 """
     This module simulates an attack on the Lightning Network and evaluates the attack results.
-    In the attack a malicious node uses a greedy algorithm in order to pick routes and paralyze as much liquidity
-    as possible. It picks routes with high liquidity channels and with similar max_concurrent_htlcs. Routes which 
-    fulfill the constraints of less than 20 hops and a maximum of locktime_max total delay. The attacker opens channels
-    and initiates max_concurrent_htlcs payments (of minimal possible amounts) through each route. We evaluate the attack
-    effectiveness and cost.
+    We consider two versions of the attack: one in which the attacker attempts to block as many high liquidity channels
+    as possible and another in which it disconnects as many pairs of nodes as it can.
+    In the first attack it picks routes with high liquidity channels and in the second it picks routes with channels
+    with high betweenness values first. In both attacks the attacker picks routes containing channels with similar
+    max_concurrent_htlcs values.
+    The resulted routes fulfill the constraints of less than 20 hops and a maximum of locktime_max total delay.
+    The attacker opens channels and initiates max_concurrent_htlcs payments (of minimal possible amounts) 
+    through each route. We evaluate the attack effectiveness and cost.
 """
 
 LOCKTIME_MAX = 144 * 14  # = 2016
