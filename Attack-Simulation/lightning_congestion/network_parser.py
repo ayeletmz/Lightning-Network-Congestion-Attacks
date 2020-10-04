@@ -142,9 +142,7 @@ def load_graph(json_data):
     # Sets 'implementation' attribute for nodes
     nx.set_node_attributes(G, {node: infer_node_implementation(G, node) for node in G.nodes}, 'implementation')
     # Sets 'betweenness' attribute to each edge
-    logger.info("1")
     nx.set_edge_attributes(G, _calc_edges_betweenness(G), 'betweenness')
-    logger.info("2")
     G = _handle_unknown_impl_nodes(G)
     # Sets 'htlc' attribute to each edge, initialized to the default max_concurrent_htlcs according to the
     # inferred implementation. This attribute indicates the remaining quota of htlcs that the peer will accept.

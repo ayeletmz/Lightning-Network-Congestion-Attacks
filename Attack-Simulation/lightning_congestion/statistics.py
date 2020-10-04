@@ -146,7 +146,7 @@ def plot_implementation_distribution_for_different_snapshots(snapshots_dir):
     for imp in impl_labels:
         y_labels = [impl_dist_by_snapshot[G_str[3:13]][imp] for G_str in snapshots_list]
         ax.plot(x_labels, y_labels, marker='o')
-        for i in [0, 1, 6, 9]:
+        for i in [0, 1, 5, 8, 12]:
             plt.text(x_labels[i], y_labels[i] + 1.5, round(y_labels[i]/100, 2), fontsize=9)
 
     ax.set_xticklabels([])
@@ -155,7 +155,7 @@ def plot_implementation_distribution_for_different_snapshots(snapshots_dir):
     plt.legend(impl_labels, loc='center right', title="Implementation")
     ax.set_xlim(np.array([-0.07 * (x_labels[2] - x_labels[1]), 0.75 * (x_labels[2] - x_labels[1])]) + ax.get_xlim())
     ax.set_yticklabels(np.arange(-2, 10, 2) / 10)
-    plt.xlabel('Snapshots                                                ', fontsize=15)
+    plt.xlabel('Snapshots                                                        ', fontsize=15)
     plt.ylabel('Fraction of the network', fontsize=15)
     plt.savefig("plots/impl_dist_by_snapshot.svg")
 
@@ -227,12 +227,11 @@ def plot_fee_base(snapshot_path):
     fee_base_count = sorted(Counter(fee_base_values).items(), key=lambda item: item[1], reverse=True)
     fee_base_percent = list(map(lambda x: (x[0], x[1] * 100 / sum(j for i, j in fee_base_count)), fee_base_count))
     # pick the index where the percent gets lower than 1.1%
-    bound_idx = min([i for i, n in enumerate(fee_base_percent) if n[1] < 1.1])
+    bound_idx = min([i for i, n in enumerate(fee_base_percent) if n[1] < 1.3])
     data_to_plot = sorted(fee_base_percent[:bound_idx], reverse=True)
-    data_to_plot.append(('other', sum(j for i, j in fee_base_percent[bound_idx:])))  # (with <1.1%)
+    data_to_plot.append(('other', sum(j for i, j in fee_base_percent[bound_idx:])))  # (with <1.3%)
     x_labels = [val[0] for val in data_to_plot]
-    y_labels = round_distribution([val[1] for val in data_to_plot], 1)
-
+    y_labels = round_distribution([val[1] for val in data_to_plot], 2)
     max_ = max(fee_base_values)
     logger.debug("max value of fee_base: " + str(max_) + " msat which are " + str(max_/ 1e11) + " BTC")
     logger.info(str(round(len([i for i in fee_base_values if i <= 1000]) / len(fee_base_values) * 100,
@@ -244,7 +243,7 @@ def plot_fee_base(snapshot_path):
     assert len(set(y_labels)) == len(y_labels)
     label_by_percent = {y_labels[i]: str(x_labels[i]) for i in range(len(x_labels))}
     ax.pie(y_labels, colors=sns.color_palette("colorblind"),
-                                        autopct=lambda pct: "{:s}".format(label_by_percent[round(pct, 1)]),
+                                        autopct=lambda pct: "{:s}".format(label_by_percent[round(pct, 2)]),
                                         shadow=True, startangle=0, textprops={'fontsize': 15})
     ax.pie(y_labels, autopct=lambda pct: "\n\n ({:.1f}%)".format(pct),
                                         shadow=True, startangle=0, textprops={'fontsize': 8})
@@ -267,9 +266,9 @@ def plot_fee_proportional(snapshot_path):
     fee_proportional_percent = list(map(lambda x: (x[0], x[1] * 100 / sum(j for i, j in fee_proportional_count)),
                                         fee_proportional_count))
     # pick the index where the percent gets lower than 2.8%
-    bound_idx = min([i for i, n in enumerate(fee_proportional_percent) if n[1] < 2.8])
+    bound_idx = min([i for i, n in enumerate(fee_proportional_percent) if n[1] < 2])
     data_to_plot = sorted(fee_proportional_percent[:bound_idx], reverse=True)
-    data_to_plot.append(('other', sum(j for i, j in fee_proportional_percent[bound_idx:])))  # (with <2.8%)
+    data_to_plot.append(('other', sum(j for i, j in fee_proportional_percent[bound_idx:])))  # (with <2%)
     # The rotation of the list is made because it improves the visibility
     # of the pie chart in matching the colors to slices.
     data_to_plot = deque(data_to_plot)
@@ -337,7 +336,7 @@ def plot_cltv_delta(snapshot_path):
                 str(round(sum([dict(cltv_delta_percent)[cltv_delta]
                                for cltv_delta in CLTV_DELTA_DEFAULTS.values()]), 1)) + "% of the total.")
     # pick the index where the percent gets lower than 1%
-    bound_idx = min([i for i, n in enumerate(cltv_delta_percent) if n[1] < 1])
+    bound_idx = min([i for i, n in enumerate(cltv_delta_percent) if n[1] < 2])
     data_to_plot = sorted(cltv_delta_percent[:bound_idx], reverse=True)
     data_to_plot.append(('other', sum(j for i, j in cltv_delta_percent[bound_idx:])))  # (with <1%)
     x_labels = [val[0] for val in data_to_plot]
@@ -456,10 +455,10 @@ def plot_cltv_delta_for_different_snapshots(snapshots_dir):
     handles, labels = ax.get_legend_handles_labels()
     handles = [handles[2], handles[0], handles[1], handles[3], handles[4], handles[5]]
     labels = [labels[2], labels[0], labels[1], labels[3], labels[4], labels[5]]
-    plt.legend(handles, labels, loc='upper right', title="Timelock (in blocks)", prop={'size': 9.5})
+    plt.legend(handles, labels, loc='upper center', title="Timelock (in blocks)", prop={'size': 9.5})
     ax.set_xlim(np.array([-0.07 * (x_labels[2] - x_labels[1]), 0.7 * (x_labels[2] - x_labels[1])]) + ax.get_xlim())
     ax.set_yticklabels(np.arange(-1, 9) / 10)
-    plt.xlabel('Snapshots                                                 ', fontsize=15)
+    plt.xlabel('Snapshots                                                        ', fontsize=15)
     plt.ylabel('Fraction of the network', fontsize=15)
     plt.savefig("plots/cltv_delta_by_snapshot.svg")
 
@@ -499,7 +498,7 @@ def main():
 
     coloredlogs.install(fmt='%(asctime)s [%(module)s: line %(lineno)d] %(levelname)s %(message)s',
                         level=logging.DEBUG, logger=logger)
-    snapshot_path = 'snapshots/LN_2020.05.21-08.00.01.json'
+    snapshot_path = 'snapshots/LN_2020.09.21-08.00.01.json'
     snapshots_dir = 'snapshots/test/'
 
     run_impl_infer_plots(snapshot_path, snapshots_dir)

@@ -157,11 +157,12 @@ def _remove_intra_edges(G, nodes):
     for p1 in range(len(nodes)):
         for p2 in range(p1 + 1, len(nodes)):
             all_pairs.append([nodes[p1], nodes[p2]])
-    num_intra_edges = len([edge_key for node1, node2 in all_pairs for edge_key in list(G.adj[node1]._atlas[node2])])
+    # num_intra_edges = len([edge_key for node1, node2 in all_pairs for edge_key in list(G.adj[node1]._atlas[node2])])
     for node1, node2 in all_pairs:  # for each pair of nodes
-        for edge_key in list(G.adj[node1]._atlas[node2]):  # for each edge between this pair
-            edge = G.adj[node1]._atlas[node2][edge_key]
-            G.remove_edge(edge['node1_pub'], edge['node2_pub'], key=edge['channel_id'])  # remove edge from graph
+        if node2 in G.adj[node1]._atlas:
+            for edge_key in list(G.adj[node1]._atlas[node2]):  # for each edge between this pair
+                edge = G.adj[node1]._atlas[node2][edge_key]
+                G.remove_edge(edge['node1_pub'], edge['node2_pub'], key=edge['channel_id'])  # remove edge from graph
 
 
 def _get_channels_connected_to_nodes_info(G, nodes):
@@ -259,8 +260,8 @@ def plot_degree_analysis(snapshot_path):
     ax1.set_xticks(np.arange(0, 60, 10))
     ax1.set_xticklabels(labels=np.arange(0, 60, 10), fontsize=16)
     ax1.set_ylabel('Fraction of nodes', fontsize=18)
-    ax1.set_yticks(np.arange(0, 0.4, 0.05))
-    ax1.set_yticklabels(labels=["{:.2f}".format(x) for x in np.arange(0, 0.4, 0.05)], fontsize=16)
+    ax1.set_yticks(np.arange(0, 0.45, 0.05))
+    ax1.set_yticklabels(labels=["{:.2f}".format(x) for x in np.arange(0, 0.45, 0.05)], fontsize=16)
     ax1.set_title("Histogram of degrees of nodes in the network", fontsize=19)
 
     logger.debug("Average Degree: " + str(np.average(degrees)) + ", Std: " + str(np.std(degrees)) +
@@ -286,13 +287,13 @@ def plot_degree_analysis(snapshot_path):
         for node_result in attack_cost_by_degree[degree]:
             ax2.scatter(degree, node_result, s=16, color="#4C72B0", alpha=0.5, edgecolors='none')
     ax2.set_xlabel('Degree', fontsize=18)
-    ax2.set_xticks(np.arange(0, 800, 100))
-    ax2.set_xticklabels(labels=np.arange(0, 800, 100), fontsize=16)
+    ax2.set_xticks(np.arange(0, 650, 100))
+    ax2.set_xticklabels(labels=np.arange(0, 650, 100), fontsize=16)
     ax2.set_ylabel('Attacker Channels', fontsize=18)
-    ax2.set_yticks(np.arange(0, 140, 20))
-    ax2.set_yticklabels(labels=np.arange(0, 140, 20), fontsize=16)
-    ax2.set_xlim((0, 800))
-    ax2.set_ylim((0, 110))
+    ax2.set_yticks(np.arange(0, 120, 20))
+    ax2.set_yticklabels(labels=np.arange(0, 120, 20), fontsize=16)
+    ax2.set_xlim((0, 650))
+    ax2.set_ylim((0, 105))
     ax2.set_title("Channels required in order to isolate nodes of different degrees", fontsize=19)
     plt.tight_layout()
     plt.savefig("plots/attack_on_hub_degree_analysis.svg")
@@ -366,7 +367,7 @@ def main():
     coloredlogs.install(fmt='%(asctime)s [%(module)s: line %(lineno)d] %(levelname)s %(message)s',
                         level=logging.DEBUG, logger=logger)
 
-    snapshot_path = 'snapshots/LN_2020.05.21-08.00.01.json'
+    snapshot_path = 'snapshots/LN_2020.09.21-08.00.01.json'
 
     attack_selected_hubs(snapshot_path)
     plot_degree_analysis(snapshot_path)

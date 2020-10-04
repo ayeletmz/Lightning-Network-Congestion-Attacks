@@ -6,6 +6,7 @@ from os import listdir
 import numpy as np
 import datetime
 import operator
+import pickle
 
 """
     This module simulates an attack on the Lightning Network and evaluates the attack results.
@@ -22,8 +23,8 @@ import operator
 LOCKTIME_MAX = 144 * 14  # = 2016
 MIN_FINAL_CLTV_EXPIRY = 0
 MAX_ROUTE_LEN = 20
-OPEN_CHANNEL_COST_BTC = 0.00014  # corresponds to ~ 1 USD
-MIN_CHANNEL_CAPACITY_BTC = 2e-5  # = 2000 sat
+OPEN_CHANNEL_COST_BTC = 0.000096*2.204  # corresponds to ~ 2.204 USD
+MIN_CHANNEL_CAPACITY_BTC = 1.1e-5  # = 1100 sat
 
 
 class Route:
@@ -88,8 +89,6 @@ class AttackRoutes:
         attack_routes.amounts_received += attack_routes1.amounts_received + attack_routes2.amounts_received
         attack_routes.max_htlcs += attack_routes1.max_htlcs + attack_routes2.max_htlcs
         attack_routes.betweenness += attack_routes1.betweenness + attack_routes2.betweenness
-        if not attack_routes.betweenness:
-            attack_routes.sort_by_capacity()
         return attack_routes
 
     def add_route(self, route):
@@ -360,7 +359,7 @@ def _choose_routes(G, lock_period, max_route_length=MAX_ROUTE_LEN):
     return attack_routes
 
 
-def _plot_attack_routes_data(attack_routes, network_capacity, lock_period):
+def _plot_attack_routes_data(attack_routes, network_capacity, lock_period, unachievable_upper_bound):
     """
     Plots histograms of routes lengths and locktimes, and a graph representing the fraction of network attacked
     capacity.
@@ -381,10 +380,10 @@ def _plot_attack_routes_data(attack_routes, network_capacity, lock_period):
     #### Plot: Histogram of routes locktimes ###
     ax2.hist(attack_routes.lock_times, bins=MAX_ROUTE_LEN)
     ax2.set_xlim((350, 2060))
-    ax2.set_ylim((0, 250))
+    ax2.set_ylim((0, 157))
     ax2.set_xticklabels(labels=np.arange(200, 2200, 200), fontsize=14)
-    ax2.set_yticklabels(labels=np.arange(0, 300, 50), fontsize=14)
-    ax2.set_yticks(np.arange(0, 250, 50))
+    ax2.set_yticklabels(labels=np.arange(0, 200, 50), fontsize=14)
+    ax2.set_yticks(np.arange(0, 200, 50))
     ax2.set_xlabel('Route locktime (blocks)', fontsize=18)
     ax2.set_ylabel('Number of occurrences', fontsize=18)
     plt.tight_layout()
@@ -399,12 +398,17 @@ def _plot_attack_routes_data(attack_routes, network_capacity, lock_period):
 
     plt.subplots(figsize=(5, 4), dpi=200)
     #### Plot: Fraction of network attacked capacity ###
-    plt.plot(np.arange(2, 2 * (len(cumulative_attacked_capacity) + 1), 2), cumulative_attacked_capacity)
+    xs = np.arange(2, 2 * (len(cumulative_attacked_capacity) + 1), 2)
+    plt.plot(xs, cumulative_attacked_capacity, label='Greedy algorithm')
     plt.yticks(np.arange(0, 1.1, 0.1))
     for i in range(len(fraction_of_attacked_capacity)):
         plt.plot(attacker_channels_required[i], fraction_of_attacked_capacity[i], 'bo', markersize=3)
         plt.text(attacker_channels_required[i] + 20 + 10*i, fraction_of_attacked_capacity[i] - 0.006*i,
                  attacker_channels_required[i], fontsize=9)
+    # Complete the straight line of the upper bound.
+    unachievable_upper_bound += unachievable_upper_bound[-1] * (1500 - len(unachievable_upper_bound))
+    plt.plot(xs, unachievable_upper_bound, '--', label='Unachievable upper bound', color='red')
+    plt.legend(loc='lower right')
     plt.xlabel('Number of attacker channels', fontsize=12)
     plt.ylabel('Fraction of attacked capacity', fontsize=12)
     plt.savefig("plots/attack_on_network_success_rate.svg")
@@ -426,8 +430,8 @@ def _plot_costs(attack_routes):
     plt.legend(loc='upper left')
     plt.xlabel('Network capacity locked by attack (BTC)')
     plt.ylabel('BTC')
-    plt.xlim((-10, 733))
-    plt.ylim((-0.008, 0.4))
+    plt.xlim((-10, 915))
+    plt.ylim((-0.008, 0.55))
     plt.savefig("plots/attack_on_network_costs.svg")
 
 
@@ -446,6 +450,7 @@ def _compute_network_attack_routes(G, lock_period, type='capacity', max_route_le
             "Combining both subgraphs results into disjoint routes in the network that can be locked for at-least "
             + str(lock_period) + " blocks (" + str(lock_period / 144) + " days)")
         attack_routes = AttackRoutes.combine(attack_routes_lnd, attack_routes_lnd_complementary)
+        attack_routes.sort_by_capacity()
     elif type == 'betweenness':
         G_copy = copy.deepcopy(G)
         attack_routes = _choose_routes_by_betweenness(G_copy, lock_period, max_route_length)
@@ -477,10 +482,31 @@ def attack_on_network(snapshot_path):
     attack_routes = _compute_network_attack_routes(G, lock_period)
 
     # Plot attack results (routes lengths, locktimes, capacities) for G (the given snapshot)
-    _plot_attack_routes_data(attack_routes.reduced(1500), G.graph['network_capacity'], lock_period)
+    _plot_attack_routes_data(attack_routes.reduced(1500), G.graph['network_capacity'], lock_period, calc_unachievable_upper_bound(G))
 
     # Plot attack costs for G (the given snapshot)
     _plot_costs(attack_routes)
+
+
+def calc_unachievable_upper_bound(G):
+    """
+    We calculate an unachievable upper bound to the attack success rate, which is calculated as follows:
+    The maximum allowed route length is 20. The attacker uses 2 channels to attack any route, hence it can attack
+    at most 18 channels per route. We sort the channels by their capacities and use the highest capacity edges first,
+    disregarding the constraint that paths are connected correctly.
+    """
+    capacities = [edge[2]['capacity'] for edge in G.edges(data=True)]
+    capacities.sort()
+    init_capacity = sum(capacities)
+    attacked_capacity = 0
+    upper_bound_results = []
+    while capacities:
+        attacked_capacity += sum(capacities[-(MAX_ROUTE_LEN - 2):])
+        del capacities[-(MAX_ROUTE_LEN - 2):]
+
+        # Current fraction of original network capacity.
+        upper_bound_results += [attacked_capacity / init_capacity]
+    return upper_bound_results
 
 
 def attack_for_different_lock_periods(snapshot_path):
@@ -493,7 +519,7 @@ def attack_for_different_lock_periods(snapshot_path):
     # Read json file created by LND describegraph command on the mainnet.
     json_data = load_json(snapshot_path)
 
-    lock_periods = [days * 144 for days in np.arange(1, 7)]  # num of blocks that correspond to 1-6 days
+    lock_periods = [days * 144 for days in range(1, 7)]  # num of blocks that correspond to 1-6 days
     fig, ax = plt.subplots(figsize=(6, 5), dpi=200)
     cumulative_attacked_capacity_per_lock_period = list()  # cumulative attacked capacity for each lock period
     for lock_period in lock_periods:
@@ -506,15 +532,15 @@ def attack_for_different_lock_periods(snapshot_path):
                                                           attack_routes.capacities)))
         cumulative_attacked_capacity_per_lock_period.append(cumulative_attacked_capacity)
         ax.plot(np.arange(2, 2 * (len(cumulative_attacked_capacity) + 1), 2), cumulative_attacked_capacity)
-    plt.legend(range(1, len(lock_periods) + 1), loc='lower right', title="Lock Period (days)")
-    plt.xlabel('Number of attacker channels', fontsize=14)
+    plt.legend(range(1, len(lock_periods) + 1), loc='lower right', title="Lock Period (days)", fontsize=14)
+    plt.xlabel('Number of attacker channels', fontsize=16)
     plt.xlim((-40, 1500))
     plt.ylim((-0.04, 1.04))
-    plt.ylabel('Fraction of attacked capacity', fontsize=14)
+    plt.ylabel('Fraction of attacked capacity', fontsize=16)
     axins = zoomed_inset_axes(ax, 20, loc=2)
     for cumulative_attacked_capacity in cumulative_attacked_capacity_per_lock_period:
         axins.plot(np.arange(2, 2 * (len(cumulative_attacked_capacity) + 1), 2), cumulative_attacked_capacity)
-    x1, x2, y1, y2 = 1100, 1119, 0.914, 0.928
+    x1, x2, y1, y2 = 830, 855, 0.849, 0.861
     axins.set_xlim(x1, x2)
     axins.set_ylim(y1, y2)
     plt.yticks(visible=False)
@@ -542,7 +568,7 @@ def attack_for_different_max_route_lengths(snapshot_path):
         logger.info("Proccesing attack results for max route length of " + str(max_route_len) + " hops")
         # Parse data into a networkx MultiGraph obj.
         G = load_graph(json_data)
-        attack_routes = _compute_network_attack_routes(G, lock_period, max_route_len)
+        attack_routes = _compute_network_attack_routes(G, lock_period, 'capacity', max_route_len)
         cumulative_attacked_capacity = np.cumsum(list(map(lambda x: x / G.graph['network_capacity'],
                                                           attack_routes.capacities)))
         plt.plot(np.arange(2, 2 * (len(cumulative_attacked_capacity) + 1), 2), cumulative_attacked_capacity)
@@ -578,16 +604,16 @@ def attack_for_different_snapshots(snapshots_dir):
         attacked_capacity_by_snapshot.append(y)
         ax.plot(x, y)
 
-    plt.legend([datetime.datetime.strptime(G_str[3:13], '%Y.%m.%d').strftime("%d %B %Y") for G_str in snapshots_list],
-               loc='lower right', fontsize=11)
-    plt.xlabel('Number of attacker channels', fontsize=13)
-    plt.ylabel('Fraction of attacked capacity', fontsize=13)
+    plt.legend([datetime.datetime.strptime(G_str[3:13], '%Y.%m.%d').strftime("%d.%m.%Y") for G_str in snapshots_list],
+               loc='lower right', fontsize=12)
+    plt.xlabel('Number of attacker channels', fontsize=15)
+    plt.ylabel('Fraction of attacked capacity', fontsize=15)
     plt.xlim((-40, 1500))
     plt.ylim((-0.04, 1.04))
     axins = zoomed_inset_axes(ax, 12, loc=2)
     for y in attacked_capacity_by_snapshot:
         axins.plot(x, y)
-    x1, x2, y1, y2 = 1150, 1177, 0.91, 0.9363
+    x1, x2, y1, y2 = 1300, 1325, 0.925, 0.953
     axins.set_xlim(x1, x2)
     axins.set_ylim(y1, y2)
     plt.yticks(visible=False)
@@ -650,13 +676,12 @@ def _plot_connectivity(G, attack_routes):
     plt.savefig("plots/attack_on_network_connectivity.svg")
     plt.subplots(figsize=(5, 4), dpi=200)
 
-
 def main():
 
     coloredlogs.install(fmt='%(asctime)s [%(module)s: line %(lineno)d] %(levelname)s %(message)s',
                         level=logging.DEBUG, logger=logger)
 
-    snapshot_path = 'snapshots/LN_2020.05.21-08.00.01.json'
+    snapshot_path = 'snapshots/LN_2020.09.21-08.00.01.json'
 
     attack_on_network(snapshot_path)
 
@@ -666,6 +691,7 @@ def main():
 
     snapshots_dir = 'snapshots/test/'
     attack_for_different_snapshots(snapshots_dir)
+
 
 if __name__ == "__main__":
     main()
