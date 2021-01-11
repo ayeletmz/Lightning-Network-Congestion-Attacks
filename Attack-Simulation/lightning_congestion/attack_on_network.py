@@ -301,7 +301,7 @@ def _choose_routes_by_betweenness(G, lock_period, max_route_length=MAX_ROUTE_LEN
         elif G_lnd_complementary.has_edge(channel['node1_pub'], channel['node2_pub'], channel['channel_id']):
             G_tmp = G_lnd_complementary
 
-        # Locates a route to attack that starts with a channel having the highest capacity, using a greedy algorithm.
+        # Locates a route to attack that starts with a channel having the highest betweenness, using a greedy algorithm.
         route = _locate_route(G_tmp, channel, lock_period, max_route_length, 'betweenness')
 
         # remove chosen route channels from the 'channels to attack' list and from the graph
@@ -320,7 +320,6 @@ def _choose_routes_by_betweenness(G, lock_period, max_route_length=MAX_ROUTE_LEN
                                                        attack_routes.capacities))) * 100, 1)
                 logger.debug("Attacker locked " + str(attack_cumulative_capacity) + "% of the network capacity, using "
                             + str((attack_routes.len())*2) + " channels.")
-                # update_edges_betweenness(G)
 
     return attack_routes
 
