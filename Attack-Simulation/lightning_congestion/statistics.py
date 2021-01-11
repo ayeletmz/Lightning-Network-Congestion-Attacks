@@ -431,8 +431,11 @@ def plot_cltv_delta_for_different_snapshots(snapshots_dir):
     # We consider the 3 top rated cltv_delta_labels from each snapshot
     cltv_delta_labels = list(set([cltvd_dist_by_snapshot[snapshot][i][0] for snapshot in cltvd_dist_by_snapshot.keys()
                                   for i in range(3)]))
+    cltv_delta_labels.sort()
     cltv_delta_labels.append('other')
     fig, ax = plt.subplots(figsize=(7.5, 5), dpi=200)
+    i = 0
+    markers = ['d', '>', 's', 'H', 'o', '*']
     for cltv_delta in cltv_delta_labels:
         cltv_delta_by_snapshot = list()
         for G_str in snapshots_list:
@@ -447,14 +450,13 @@ def plot_cltv_delta_for_different_snapshots(snapshots_dir):
                 else:
                     cltv_delta_by_snapshot.append((G_str[3:13], 0))
         y_labels = [val[1] for val in cltv_delta_by_snapshot]
-        ax.plot(x_labels, y_labels, marker='o', label=cltv_delta)
+        ax.plot(x_labels, y_labels, marker=markers[i], label=cltv_delta)
+        i += 1
 
     ax.set_xticklabels([])
     for i, txt in enumerate(date_labels):
         plt.text(x_labels[i], -16, txt, fontsize=11, rotation=-45)
     handles, labels = ax.get_legend_handles_labels()
-    handles = [handles[2], handles[0], handles[1], handles[3], handles[4], handles[5]]
-    labels = [labels[2], labels[0], labels[1], labels[3], labels[4], labels[5]]
     plt.legend(handles, labels, loc='upper center', title="Timelock (in blocks)", prop={'size': 9.5})
     ax.set_xlim(np.array([-0.07 * (x_labels[2] - x_labels[1]), 0.7 * (x_labels[2] - x_labels[1])]) + ax.get_xlim())
     ax.set_yticklabels(np.arange(-1, 9) / 10)
