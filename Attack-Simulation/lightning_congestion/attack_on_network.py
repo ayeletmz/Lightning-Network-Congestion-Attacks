@@ -25,7 +25,7 @@ MIN_FINAL_CLTV_EXPIRY = 0
 MAX_ROUTE_LEN = 20
 OPEN_CHANNEL_COST_BTC = 0.000096*2.204  # corresponds to ~ 2.204 USD
 MIN_CHANNEL_CAPACITY_BTC = 1.1e-5  # = 1100 sat
-
+DEFAULT_DUST_LIMIT = 546
 
 class Route:
     """
@@ -161,7 +161,7 @@ def _calc_min_payment_amount_for_route(nodes_policies):
     Given the intermediate nodes policies along a route, returns the minimal amount (in msat) that can be transferred
     via a single payment through this route.
     """
-    amount = 0
+    amount = DEFAULT_DUST_LIMIT
     for node in reversed(nodes_policies):
         amount = _hop_amount_calculation(amount, node['min_htlc'], node['fee_base_msat'], node['fee_rate_milli_msat'])
     if amount == 0:  # send at least 1 msat, even if all nodes along the route accept 0 (min_htlc=0 and fee_base=0)
@@ -174,7 +174,7 @@ def _hop_amount_calculation_reverse(amount, min_htlc, fee_base, fee_proportional
    Given policy details of a node (fees and min_htlc) and a payment amount sent to it for forwarding, returns the
    amount (in msat) that should be forwarded from it (after removing its' fees).
    """
-    if amount + EPSILON < min_htlc:
+    if amount + EPSILON < min_htlc or amount + EPSILON < DEFAULT_DUST_LIMIT:
         raise Exception('Cannot transfer less than min htlc msat')
     return (amount - fee_base) / (1 + (fee_proportional_millionths / 1e6))
 
