@@ -7,7 +7,6 @@ import numpy as np
 import datetime
 import operator
 
-
 """
     This module simulates an attack on the Lightning Network and evaluates the attack results.
     We consider two versions of the attack: one in which the attacker attempts to block as many high liquidity channels
@@ -26,7 +25,7 @@ MAX_ROUTE_LEN = 20
 AVG_TX_FEES_USD = 2.204  # Average transaction fees observed on Sep 21, 2020
 OPEN_CHANNEL_COST_BTC = 0.000096 * AVG_TX_FEES_USD
 MIN_CHANNEL_CAPACITY_BTC = 1.1e-5  # = 1100 sat
-DEFAULT_DUST_LIMIT_SAT = 546  # in sat
+									  
 
 
 class Route:
@@ -44,7 +43,7 @@ class Route:
         self.policies = list()  # of intermediate nodes (all except the attacker). Relevant for cltv delta and fee calculations
 
     def __len__(self):
-        return len(self.edges) + 2  # 2 (first and last edges) are attackers'
+        return len(self.edges) + 2 # 2 (first and last edges) are attackers'
 
 
 class AttackRoutes:
@@ -54,6 +53,7 @@ class AttackRoutes:
     """
 
     def __init__(self):
+
         # Holds each route edges
         self.edges = list()
 
@@ -78,6 +78,7 @@ class AttackRoutes:
 
         # Holds each route first edge betweenness (when removed)
         self.betweenness = list()
+
 
     @classmethod
     def combine(cls, attack_routes1, attack_routes2):
@@ -187,7 +188,7 @@ def _calc_received_amount_for_route(nodes_policies, amount_sent):
     amount = amount_sent
     for node in nodes_policies:
         amount = _hop_amount_calculation_reverse(amount, node['min_htlc'], node['fee_base_msat'],
-                                                 node['fee_rate_milli_msat'])
+                                                     node['fee_rate_milli_msat'])
     return amount
 
 
@@ -223,14 +224,14 @@ def _append_next_edge_to_route(G, route, lock_period, max_route_length, type='ca
     if type == 'capacity':
         # Extract the channels with the maximum capacity
         optimal_adj_channels = [channel_tup for channel_tup in adj_channels
-                                if channel_tup[2] == max(adj_channels, key=operator.itemgetter(2))[2]]
+                                     if channel_tup[2] == max(adj_channels, key=operator.itemgetter(2))[2]]
 
         # From the max capacity adjacent channels pick a channel with minimum cltv delta
         channel_tup = min(optimal_adj_channels, key=operator.itemgetter(3))
     elif type == 'betweenness':
         # Extract the channels with the maximum betweenness
         optimal_adj_channels = [channel_tup for channel_tup in adj_channels
-                                if channel_tup[5] == max(adj_channels, key=operator.itemgetter(5))[5]]
+                                     if channel_tup[5] == max(adj_channels, key=operator.itemgetter(5))[5]]
 
         # From the max betweenness adjacent channels pick a channel with minimum cltv delta
         channel_tup = min(optimal_adj_channels, key=operator.itemgetter(3))
@@ -310,16 +311,16 @@ def _choose_routes_by_betweenness(G, lock_period, max_route_length=MAX_ROUTE_LEN
             G_tmp.remove_edge(edge['node1_pub'], edge['node2_pub'], key=edge['channel_id'])
         update_edges_betweenness(G)
         channels_to_attack = sorted(list(map(lambda x: x[2], G.edges(data=True))), key=lambda x: x['betweenness'],
-                                    reverse=True)
+                                reverse=True)
 
         attack_routes.add_route(route)
 
         if logger.level == logging.DEBUG:
             if not len(attack_routes) % 100:
                 attack_cumulative_capacity = round(sum(list(map(lambda x: x / G.graph['network_capacity'],
-                                                                attack_routes.capacities))) * 100, 1)
+                                                       attack_routes.capacities))) * 100, 1)
                 logger.debug("Attacker locked " + str(attack_cumulative_capacity) + "% of the network capacity, using "
-                             + str((len(attack_routes)) * 2) + " channels.")
+                            + str((len(attack_routes))*2) + " channels.")
 
     return attack_routes
 
@@ -349,9 +350,9 @@ def _choose_routes(G, lock_period, max_route_length=MAX_ROUTE_LEN):
         if logger.level == logging.DEBUG:
             if not len(attack_routes) % 100:
                 attack_cumulative_capacity = round(sum(list(map(lambda x: x / G.graph['network_capacity'],
-                                                                attack_routes.capacities))) * 100, 1)
+                                                       attack_routes.capacities))) * 100, 1)
                 logger.debug("Attacker locked " + str(attack_cumulative_capacity) + "% of the network capacity, using "
-                             + str((len(attack_routes)) * 2) + " channels.")
+                            + str((len(attack_routes))*2) + " channels.")
 
     # sort chosen routes by capacity in descending order
     attack_routes.sort_by_capacity()
@@ -365,7 +366,7 @@ def _plot_attack_routes_data(attack_routes, network_capacity, lock_period, unach
     """
     logger.info("Presenting attack results, using a max rought length of " + str(MAX_ROUTE_LEN) + " hops" +
                 " and a lower bound on channels locktime of " + str(lock_period) + " blocks (" +
-                str(lock_period / 144) + " days)")
+                 str(lock_period/144) + " days)")
     #### Plot: Histogram of routes lengths (including attacker's edges)###
     fig, (ax1, ax2) = plt.subplots(2, figsize=(8, 6))
     ax1.hist(attack_routes.lengths, bins=np.arange(3, MAX_ROUTE_LEN + 2, 1), align='left', rwidth=0.8)
@@ -402,10 +403,10 @@ def _plot_attack_routes_data(attack_routes, network_capacity, lock_period, unach
     plt.yticks(np.arange(0, 1.1, 0.1))
     for i in range(len(fraction_of_attacked_capacity)):
         plt.plot(attacker_channels_required[i], fraction_of_attacked_capacity[i], 'bo', markersize=3)
-        plt.text(attacker_channels_required[i] + 20 + 10 * i, fraction_of_attacked_capacity[i] - 0.006 * i,
+        plt.text(attacker_channels_required[i] + 20 + 10*i, fraction_of_attacked_capacity[i] - 0.006*i,
                  attacker_channels_required[i], fontsize=9)
     # Complete the straight line of the upper bound.
-    unachievable_upper_bound += unachievable_upper_bound[-1] * (1500 - len(unachievable_upper_bound))
+    unachievable_upper_bound += [unachievable_upper_bound[-1]] * (1500 - len(unachievable_upper_bound))
     plt.plot(xs, unachievable_upper_bound, '--', label='Unachievable upper bound', color='red')
     plt.legend(loc='lower right')
     plt.xlabel('Number of attacker channels', fontsize=12)
@@ -418,12 +419,12 @@ def _plot_costs(attack_routes):
     locked_liquidity = np.asarray(attack_routes.get_capacity_needed_to_attack())
     blockchain_fees = np.asarray([OPEN_CHANNEL_COST_BTC * 2] * len(locked_liquidity))
     sorted_data = np.asarray(sorted(
-        [[locked_liquidity[i], blockchain_fees[i], locked_liquidity[i] + blockchain_fees[i],
-          attack_routes.capacities[i]]
+        [[locked_liquidity[i], blockchain_fees[i], locked_liquidity[i] + blockchain_fees[i], attack_routes.capacities[i]]
+									  
          for i in range(len(attack_routes))], key=lambda x: x[3] / x[2], reverse=True))
     x = np.cumsum(list(map(lambda x: x / 1e8, sorted_data[:, 3])))  # 1 BTC = 1e8 SAT
     y = [np.cumsum(sorted_data[:, 1]), np.cumsum(sorted_data[:, 0])]
-    logger.info("The attacker can paralyze " + str(round(x[np.argmax(y[0] + y[1] > 0.5) - 1], 1)) +
+    logger.info("The attacker can paralyze " + str(round(x[np.argmax(y[0]+y[1] > 0.5) - 1], 1)) +
                 " BTC of liquidity in the Lightning Network for 3 days using less than 0.5 BTC")
     plt.figure(figsize=(5.4, 4.05), dpi=200)
     plt.stackplot(x, y, labels=['blockchain fees', 'locked liquidity'])
@@ -473,6 +474,9 @@ def attack_on_network(snapshot_path):
 
     logger.debug("Network capacity: " + str(round(G.graph['network_capacity'] / 1e8, 2)) + " BTC")
 
+    # Removing edges that cannot be attacked due to a capacity lower than the dust limit * max concurrent htlcs.
+    remove_below_dust_capacity_channels(G)
+
     lock_period = 432  # 3 days
 
     # Attacker disconnects as many pairs of nodes as it can
@@ -484,8 +488,8 @@ def attack_on_network(snapshot_path):
     attack_routes = _compute_network_attack_routes(G, lock_period)
 
     # Plot attack results (routes lengths, locktimes, capacities) for G (the given snapshot)
-    _plot_attack_routes_data(attack_routes.reduced(1500), G.graph['network_capacity'], lock_period,
-                             calc_unachievable_upper_bound(G))
+    _plot_attack_routes_data(attack_routes.reduced(1500), G.graph['network_capacity'], lock_period, calc_unachievable_upper_bound(G))
+															  
 
     # Plot attack costs for G (the given snapshot)
     _plot_costs(attack_routes)
@@ -527,9 +531,11 @@ def attack_for_different_lock_periods(snapshot_path):
     cumulative_attacked_capacity_per_lock_period = list()  # cumulative attacked capacity for each lock period
     for lock_period in lock_periods:
         logger.info("Proccesing attack results for lock time period of " + str(lock_period) + " blocks (" +
-                    str(lock_period / 144) + " days)")
+                     str(lock_period / 144) + " days)")
         # Parse data into a networkx MultiGraph obj.
         G = load_graph(json_data)
+        # Removing edges that cannot be attacked due to a capacity lower than the dust limit * max concurrent htlcs.
+        remove_below_dust_capacity_channels(G)
         attack_routes = _compute_network_attack_routes(G, lock_period).reduced(800)
         cumulative_attacked_capacity = np.cumsum(list(map(lambda x: x / G.graph['network_capacity'],
                                                           attack_routes.capacities)))
@@ -540,17 +546,6 @@ def attack_for_different_lock_periods(snapshot_path):
     plt.xlim((-40, 1500))
     plt.ylim((-0.04, 1.04))
     plt.ylabel('Fraction of attacked capacity', fontsize=16)
-    axins = zoomed_inset_axes(ax, 20, loc=2)
-    for cumulative_attacked_capacity in cumulative_attacked_capacity_per_lock_period:
-        axins.plot(np.arange(2, 2 * (len(cumulative_attacked_capacity) + 1), 2), cumulative_attacked_capacity)
-    x1, x2, y1, y2 = 830, 855, 0.849, 0.861
-    axins.set_xlim(x1, x2)
-    axins.set_ylim(y1, y2)
-    plt.yticks(visible=False)
-    plt.xticks(visible=False)
-    plt.grid(b=None)
-    from mpl_toolkits.axes_grid1.inset_locator import mark_inset
-    mark_inset(ax, axins, loc1=2, loc2=4, fc="none", ec="0.5")
     plt.savefig("plots/attack_on_network_by_lock_period.svg", bbox_inches='tight')
 
 
@@ -571,6 +566,8 @@ def attack_for_different_max_route_lengths(snapshot_path):
         logger.info("Proccesing attack results for max route length of " + str(max_route_len) + " hops")
         # Parse data into a networkx MultiGraph obj.
         G = load_graph(json_data)
+        # Removing edges that cannot be attacked due to a capacity lower than the dust limit * max concurrent htlcs.
+        remove_below_dust_capacity_channels(G)
         attack_routes = _compute_network_attack_routes(G, lock_period, 'capacity', max_route_len)
         cumulative_attacked_capacity = np.cumsum(list(map(lambda x: x / G.graph['network_capacity'],
                                                           attack_routes.capacities)))
@@ -598,14 +595,18 @@ def attack_for_different_snapshots(snapshots_dir):
                     datetime.datetime.strptime(G_str[3:13], '%Y.%m.%d').strftime("%d %B, %Y"))
         json_data = load_json(snapshots_dir + G_str)
         G = load_graph(json_data)
+        logger.debug("Network capacity: " + str(round(G.graph['network_capacity'] / 1e8, 2)) + " BTC")
+        # Removing edges that cannot be attacked due to a capacity lower than the dust limit * max concurrent htlcs.
+        remove_below_dust_capacity_channels(G)
         attack_routes = _compute_network_attack_routes(G, lock_period)
         cumulative_attacked_capacity = [0] + np.cumsum(list(map(lambda x: x / G.graph['network_capacity'],
-                                                                attack_routes.capacities)))[:800]
+                                                          attack_routes.capacities)))[:800]
 
         x = np.arange(0, 2 * len(cumulative_attacked_capacity), 2)
         y = cumulative_attacked_capacity
         attacked_capacity_by_snapshot.append(y)
-        ax.plot(x, y)
+        
+		ax.plot(x, y)
 
     plt.legend([datetime.datetime.strptime(G_str[3:13], '%Y.%m.%d').strftime("%d.%m.%Y") for G_str in snapshots_list],
                loc='lower right', fontsize=12)
@@ -616,7 +617,7 @@ def attack_for_different_snapshots(snapshots_dir):
     axins = zoomed_inset_axes(ax, 12, loc=2)
     for y in attacked_capacity_by_snapshot:
         axins.plot(x, y)
-    x1, x2, y1, y2 = 1300, 1325, 0.925, 0.953
+    x1, x2, y1, y2 = 1300, 1325, 0.92, 0.948
     axins.set_xlim(x1, x2)
     axins.set_ylim(y1, y2)
     plt.yticks(visible=False)
@@ -666,14 +667,14 @@ def _plot_connectivity(G, attack_routes):
         if i % 5 == 0:
             connected_pairs = get_connected_pairs(G, connected_pairs)
             connected_pairs_count_list.append(len(connected_pairs))
-            num_of_channels.append((i + 1) * 2)
-            logger.debug(str(connected_pairs_count_list[-1] / total_pairs) + "\t" + str(
-                connected_pairs_count_list[-1] / initial_connected_pairs_count))
+            num_of_channels.append((i+1)*2)
+            logger.debug(str(connected_pairs_count_list[-1]/total_pairs) + "\t" + str(connected_pairs_count_list[-1]/initial_connected_pairs_count))
+																				
         i += 1
 
     plt.subplots(figsize=(5, 4), dpi=200)
     #### Plot: Fraction of network attacked capacity ###
-    plt.plot(num_of_channels, [i / total_pairs for i in connected_pairs_count_list])
+    plt.plot(num_of_channels, [i/total_pairs for i in connected_pairs_count_list])
     plt.yticks(np.arange(0, 1.1, 0.1))
     plt.xlabel('Number of attacker channels', fontsize=12)
     plt.ylabel('Fraction of connected pairs', fontsize=12)
@@ -682,6 +683,7 @@ def _plot_connectivity(G, attack_routes):
 
 
 def main():
+
     coloredlogs.install(fmt='%(asctime)s [%(module)s: line %(lineno)d] %(levelname)s %(message)s',
                         level=logging.DEBUG, logger=logger)
 
