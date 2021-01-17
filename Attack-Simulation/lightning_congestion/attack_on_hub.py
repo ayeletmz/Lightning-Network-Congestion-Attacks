@@ -92,7 +92,7 @@ def attack_node(G, node, alias=None):
         return 0
 
     total_attacked_capacity = sum([c['capacity'] for c in adjacent_channels])
-    logger.info("["+alias+"] Attacking node " + node + ". Degree: " + str(num_adjacent_channels) + ", Capacity: " +
+    logger.debug("["+alias+"] Attacking node " + node + ". Degree: " + str(num_adjacent_channels) + ", Capacity: " +
                 str(round(total_attacked_capacity / 1e8, 1)) + " BTC (" +
                 str(round(total_attacked_capacity * 100 / G.graph['network_capacity'], 1)) +
                 "% of the network).")
@@ -134,9 +134,9 @@ def attack_node(G, node, alias=None):
         list(filter(lambda x: x["htlc"] <= 1, [i[2] for i in G.edges(data=True) if not i[2]['Attacker']]))
     locked_capacity = sum(list(map(lambda x: x['capacity'], attacked_channels)))
     num_attacker_channels = G.number_of_edges("0" * 66, node)
-    logger.info("["+alias+"] Succeeded to attack " + str(len(attacked_channels)) +
+    logger.debug("["+alias+"] Succeeded to attack " + str(len(attacked_channels)) +
                 " out of " + str(num_adjacent_channels) + " adjacent channels.")
-    logger.info("["+alias+"] Attacker needed to open " +
+    logger.debug("["+alias+"] Attacker needed to open " +
                 str(num_attacker_channels) + " channels for the attack. It locked " +
                 str(round(locked_capacity / G.graph['network_capacity'] * 100, 1))
                 + "% of the network capacity for " + str(round(LOCK_PERIOD / 144, 1)) + " days.")
@@ -221,8 +221,8 @@ def attack_selected_hubs(snapshot_path):
     json_data = load_json(snapshot_path)
     # Parse data into a networkx MultiGraph obj.
     G = load_graph(json_data)
-    # Removing edges that cannot be attacked due to a capacity lower than the dust limit * max concurrent htlcs.
-    remove_below_dust_capacity_channels(G)
+																												
+										  
     # nodes sorted by decreasing capacity
     nodes = sorted(G.nodes(data=True), key=lambda x: x[1]['capacity'], reverse=True)
     # Attacking 10 top capacity hubs.
@@ -249,9 +249,9 @@ def plot_degree_analysis(snapshot_path):
     # Parse data into a networkx MultiGraph obj.
     G = load_graph(json_data)
 
-    # Removing edges that cannot be attacked due to a capacity lower than the dust limit * max concurrent htlcs.
-    remove_below_dust_capacity_channels(G)
-    G.remove_nodes_from(list(nx.isolates(G)))
+																												
+										  
+											 
 
     nodes = G.nodes(data=True)
     fig, (ax2, ax1) = plt.subplots(2, figsize=(10, 8))
