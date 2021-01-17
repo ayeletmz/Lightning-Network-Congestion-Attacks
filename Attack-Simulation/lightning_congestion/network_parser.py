@@ -25,6 +25,7 @@ EPSILON = 1e-6
 IMPLEMENTATIONS = ['LND', 'C-Lightning', 'Eclair']
 MAX_CONCURRENT_HTLCS_DEFAULTS = {"LND": 483, 'C-Lightning': 30, 'Eclair': 30}
 CLTV_DELTA_DEFAULTS = {'LND': 40, 'C-Lightning': 14, 'Eclair': 144}
+DEFAULT_DUST_LIMIT_SAT = 546  # in sat
 
 
 def load_json(snapshot_path):
@@ -148,6 +149,21 @@ def load_graph(json_data):
     # inferred implementation. This attribute indicates the remaining quota of htlcs that the peer will accept.
     nx.set_edge_attributes(G, _edges_max_concurrent_htlcs(G), 'htlc')
     return G
+
+
+def remove_below_dust_capacity_channels(G):
+    """
+    Removes edges from G with capacity lower than the dust limit * max concurrent htlcs.
+    """
+    removed_capacity = 0
+    for edge in copy.deepcopy(G.edges(data=True)):
+        edge_data = edge[2]
+        if edge_data['capacity'] < edge_data['htlc'] * DEFAULT_DUST_LIMIT_SAT:
+            removed_capacity += edge_data['capacity']
+            G.remove_edge(edge_data['node1_pub'], edge_data['node2_pub'], key=edge_data['channel_id'])
+    logger.debug("Removing edges that cannot be attacked due to a capacity lower than the dust limit * max concurrent htlcs. "
+                 "These constitute " + str(round(removed_capacity * 100 / G.graph['network_capacity'], 1))
+                 + "% of the networks' capacity")
 
 
 def _remove_edges(G, edges):
