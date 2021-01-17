@@ -221,6 +221,8 @@ def attack_selected_hubs(snapshot_path):
     json_data = load_json(snapshot_path)
     # Parse data into a networkx MultiGraph obj.
     G = load_graph(json_data)
+    # Removing edges that cannot be attacked due to a capacity lower than the dust limit * max concurrent htlcs.
+    remove_below_dust_capacity_channels(G)
     # nodes sorted by decreasing capacity
     nodes = sorted(G.nodes(data=True), key=lambda x: x[1]['capacity'], reverse=True)
     # Attacking 10 top capacity hubs.
@@ -246,6 +248,11 @@ def plot_degree_analysis(snapshot_path):
     json_data = load_json(snapshot_path)
     # Parse data into a networkx MultiGraph obj.
     G = load_graph(json_data)
+
+    # Removing edges that cannot be attacked due to a capacity lower than the dust limit * max concurrent htlcs.
+    remove_below_dust_capacity_channels(G)
+    G.remove_nodes_from(list(nx.isolates(G)))
+
     nodes = G.nodes(data=True)
     fig, (ax2, ax1) = plt.subplots(2, figsize=(10, 8))
 
