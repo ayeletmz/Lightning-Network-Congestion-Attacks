@@ -25,7 +25,7 @@ MAX_ROUTE_LEN = 20
 AVG_TX_FEES_USD = 2.204  # Average transaction fees observed on Sep 21, 2020
 OPEN_CHANNEL_COST_BTC = 0.000096 * AVG_TX_FEES_USD
 MIN_CHANNEL_CAPACITY_BTC = 1.1e-5  # = 1100 sat
-									  
+		   
 
 
 class Route:
@@ -98,7 +98,8 @@ class AttackRoutes:
         self.lengths.append(len(route))
         self.lock_times.append(route.time_lock)
         self.capacities.append(route.capacity)
-        amount_sent = _calc_min_payment_amount_for_route(route.policies)
+        dust_limit = max(edge['dust'] for edge in route.edges)
+        amount_sent = _calc_min_payment_amount_for_route(route.policies, dust_limit)
         self.amounts_sent.append(amount_sent)
         self.amounts_received.append(_calc_received_amount_for_route(route.policies, amount_sent))
         self.max_htlcs.append(route.edges[0]['htlc'])
@@ -158,12 +159,12 @@ def _hop_amount_calculation(amount, min_htlc, fee_base, fee_proportional_million
     return amount + fee_base + amount * fee_proportional_millionths / 1e6  # BOLT07
 
 
-def _calc_min_payment_amount_for_route(nodes_policies):
+def _calc_min_payment_amount_for_route(nodes_policies, dust_limit):
     """
-    Given the intermediate nodes policies along a route, returns the minimal amount (in msat) that can be transferred
-    via a single payment through this route.
+    Given the intermediate nodes policies along a route and the maximum dust limit of intermediate nodes,
+    returns the minimal amount (in msat) that can be transferred via a single payment through this route.
     """
-    amount = DEFAULT_DUST_LIMIT_SAT * 1e3
+    amount = dust_limit * 1e3
     for node in reversed(nodes_policies):
         amount = _hop_amount_calculation(amount, node['min_htlc'], node['fee_base_msat'], node['fee_rate_milli_msat'])
 
@@ -175,7 +176,7 @@ def _hop_amount_calculation_reverse(amount, min_htlc, fee_base, fee_proportional
    Given policy details of a node (fees and min_htlc) and a payment amount sent to it for forwarding, returns the
    amount (in msat) that should be forwarded from it (after removing its' fees).
    """
-    if amount + EPSILON < min_htlc or amount + EPSILON < DEFAULT_DUST_LIMIT_SAT * 1e3:
+    if amount + EPSILON < min_htlc or amount + EPSILON < min(DEFAULT_DUST_LIMIT_SAT.values()) * 1e3:
         raise Exception('Cannot transfer less than min htlc msat or dust limit')
     return (amount - fee_base) / (1 + (fee_proportional_millionths / 1e6))
 
@@ -417,10 +418,10 @@ def _plot_attack_routes_data(attack_routes, network_capacity, lock_period, unach
 def _plot_costs(attack_routes):
     # Plots evaluation of the costs
     locked_liquidity = np.asarray(attack_routes.get_capacity_needed_to_attack())
-    blockchain_fees = np.asarray([OPEN_CHANNEL_COST_BTC * 2] * len(locked_liquidity))
+    blockchain_fees = np.asarray([OPEN_CHANNEL_COST_BTC * 2]*len(locked_liquidity))
     sorted_data = np.asarray(sorted(
         [[locked_liquidity[i], blockchain_fees[i], locked_liquidity[i] + blockchain_fees[i], attack_routes.capacities[i]]
-									  
+		   
          for i in range(len(attack_routes))], key=lambda x: x[3] / x[2], reverse=True))
     x = np.cumsum(list(map(lambda x: x / 1e8, sorted_data[:, 3])))  # 1 BTC = 1e8 SAT
     y = [np.cumsum(sorted_data[:, 1]), np.cumsum(sorted_data[:, 0])]
@@ -432,7 +433,8 @@ def _plot_costs(attack_routes):
     plt.xlabel('Network capacity locked by attack (BTC)')
     plt.ylabel('BTC')
     plt.xlim((-10, 915))
-    plt.ylim((-0.008, 4.3))
+    plt.ylim((-0.008, 4.5))
+    plt.yticks(np.arange(0, 4.5, step=0.5))
     plt.savefig("plots/attack_on_network_costs.svg")
 
 
@@ -489,7 +491,7 @@ def attack_on_network(snapshot_path):
 
     # Plot attack results (routes lengths, locktimes, capacities) for G (the given snapshot)
     _plot_attack_routes_data(attack_routes.reduced(1500), G.graph['network_capacity'], lock_period, calc_unachievable_upper_bound(G))
-															  
+				 
 
     # Plot attack costs for G (the given snapshot)
     _plot_costs(attack_routes)
@@ -605,8 +607,8 @@ def attack_for_different_snapshots(snapshots_dir):
         x = np.arange(0, 2 * len(cumulative_attacked_capacity), 2)
         y = cumulative_attacked_capacity
         attacked_capacity_by_snapshot.append(y)
-        
-		ax.plot(x, y)
+		
+        ax.plot(x, y)
 
     plt.legend([datetime.datetime.strptime(G_str[3:13], '%Y.%m.%d').strftime("%d.%m.%Y") for G_str in snapshots_list],
                loc='lower right', fontsize=12)
@@ -668,8 +670,8 @@ def _plot_connectivity(G, attack_routes):
             connected_pairs = get_connected_pairs(G, connected_pairs)
             connected_pairs_count_list.append(len(connected_pairs))
             num_of_channels.append((i+1)*2)
-            logger.debug(str(connected_pairs_count_list[-1]/total_pairs) + "\t" + str(connected_pairs_count_list[-1]/initial_connected_pairs_count))
-																				
+            logger.debug(str(connected_pairs_count_list[-1]/total_pairs) + "\t" + str(connected_pairs_count_list[-1]/initial_connected_pairs_count))				
+					
         i += 1
 
     plt.subplots(figsize=(5, 4), dpi=200)
