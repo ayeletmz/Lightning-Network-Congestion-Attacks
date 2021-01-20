@@ -25,7 +25,7 @@ EPSILON = 1e-6
 IMPLEMENTATIONS = ['LND', 'C-Lightning', 'Eclair']
 MAX_CONCURRENT_HTLCS_DEFAULTS = {"LND": 483, 'C-Lightning': 30, 'Eclair': 30}
 CLTV_DELTA_DEFAULTS = {'LND': 40, 'C-Lightning': 14, 'Eclair': 144}
-DEFAULT_DUST_LIMIT_SAT = 546  # in sat
+DEFAULT_DUST_LIMIT_SAT = {'LND': 573, 'C-Lightning': 546, 'Eclair': 546} # in sat
 
 
 def load_json(snapshot_path):
@@ -120,6 +120,14 @@ def _edges_max_concurrent_htlcs(G):
             for key in G.edges.keys()}
 
 
+def _edges_max_dust_limit(G):
+    # Assigns each channel the max dust limit of its peers, according to the defaults configured by the inferred
+    # implementation they run
+    return {key: max(DEFAULT_DUST_LIMIT_SAT[G.nodes[G.edges[key]['node1_pub']]['implementation']],
+                     DEFAULT_DUST_LIMIT_SAT[G.nodes[G.edges[key]['node2_pub']]['implementation']])
+            for key in G.edges.keys()}
+
+
 def load_graph(json_data):
     # Remove channels that are disabled or that do not declare their policies.
     json_data = filter_snapshot_data(json_data)
@@ -148,6 +156,10 @@ def load_graph(json_data):
     # Sets 'htlc' attribute to each edge, initialized to the default max_concurrent_htlcs according to the
     # inferred implementation. This attribute indicates the remaining quota of htlcs that the peer will accept.
     nx.set_edge_attributes(G, _edges_max_concurrent_htlcs(G), 'htlc')
+    # Sets 'dust' attribute to each edge, initialized to the maximum default dust limit of the peers according to their
+    # inferred implementation. This attribute indicates the threshold on the payment size below which htlcs would not
+    # be added by nodes.
+    nx.set_edge_attributes(G, _edges_max_dust_limit(G), 'dust')
     return G
 
 
@@ -158,7 +170,7 @@ def remove_below_dust_capacity_channels(G):
     removed_capacity = 0
     for edge in copy.deepcopy(G.edges(data=True)):
         edge_data = edge[2]
-        if edge_data['capacity'] < edge_data['htlc'] * DEFAULT_DUST_LIMIT_SAT:
+        if edge_data['capacity'] < edge_data['htlc'] * edge_data['dust']:
             removed_capacity += edge_data['capacity']
             G.remove_edge(edge_data['node1_pub'], edge_data['node2_pub'], key=edge_data['channel_id'])
     logger.debug("Removing edges that cannot be attacked due to a capacity lower than the dust limit * max concurrent htlcs. "
